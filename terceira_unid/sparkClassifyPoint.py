@@ -16,8 +16,6 @@ class Point(object):
 
 
 
-
-
 # Testing point
 testPoint = Point(2, 7.45, 0)
 k = 3
@@ -36,13 +34,13 @@ def printPoints(x):
     print("x-> {}, y->{}, val->{}, dist -> {}".format(x.x, x.y, x.value, x.distance))
 
 
-# 3 -> x / 4 -> y / 12 -> val
+# [3] -> x / [4] -> y / [12] -> val
 def criarPoints(x):
     splittedLinha = x.split(",")
     eachPoint = Point(splittedLinha[3], splittedLinha[4], splittedLinha[12])
-    # print("x-> {}, y->{}, val->{}".format(eachPoint.x, eachPoint.y, eachPoint.value))
 
     return eachPoint
+
 
 
 def setDistance(eachpoint):
@@ -53,8 +51,9 @@ def setDistance(eachpoint):
     return eachpoint
 
 
+# esse metodo transformara o array de objetos em um array so de valores -> apos a dist euclidiana e a ordenacao
 def pegarVal(x):
-    return x.value
+    return float(x.value)
 
 
 
@@ -66,59 +65,65 @@ def media(lista):
     return media/len(lista)
 
 
-sc = SparkContext(appName="Knn")
-
-kafkaParams = {"metadata.broker.list": "localhost:9092"}
-
-start = 1 # pular primeira linha
-until = 15
-partition = 0
-topic = 'csvtopic'
-offset = OffsetRange(topic, partition, start, until)
-offsets = [offset]
 
 
 
 
 
 
-print(" >>>>>>>> CONSUMINDO KAFKA <<<<<<<<")
+if __name__ == "__main__":
 
-rdd = KafkaUtils.createRDD(sc, kafkaParams, offsets)
 
-linhas = rdd.map(lambda x: x[1])
-
-linhas.foreach(printer)
+    sc = SparkContext('local[*]', 'hands on PySpark')
 
 
 
-arr = linhas.map(criarPoints) # Criacao dos points 
 
+    kafkaParams = {"metadata.broker.list": "localhost:9092"}
 
-arr.foreach(printPoints)
-print("\n")
-
-dist = arr.map(setDistance) # Distancia euclidiana
-
-dist.foreach(printPoints)
-print("\n")
-
-orderedDist = dist.sortBy(lambda x: x.distance) # Ordenacao
-
-orderedDist.foreach(printPoints)
-
-
-
-valores = orderedDist.map(pegarVal)
-
-# pegando os k primeiros valores -> ja no formato de lista
-lista = valores.take(k)
-print(lista)
-print("The value classified to unknown point is: {}".format(media(lista)))
+    start = 1 # pular primeira linha
+    until = 500000
+    partition = 0
+    topic = 'csvtopic'
+    offset1 = OffsetRange(topic, partition, start, until)
+    # offset2 = OffsetRange('csvtopic', 0, 500001, 1000000)
+    offsets = [offset1]
 
 
 
 
 
 
-print(" >>>>>>>> FIM DO CONSUMO <<<<<<<<")
+    print(" >>>>>>>> CONSUMINDO KAFKA <<<<<<<<")
+
+    rdd = KafkaUtils.createRDD(sc, kafkaParams, offsets)
+
+
+    linhas = rdd.map(lambda x: x[1])
+
+    # linhas.foreach(printer)
+
+
+
+    arr = linhas.map(criarPoints)\
+        .map(setDistance)\
+        .sortBy(lambda x: x.distance).map(pegarVal)
+
+
+
+
+    # valores = arr.map(pegarVal)
+
+ 
+
+ 
+    # pegando os k primeiros valores -> ja no formato de lista
+    lista = arr.take(k)
+    sc.stop()
+    print(lista)
+    print("The value classified to unknown point is: {}".format(media(lista)))
+
+
+
+
+    print(" >>>>>>>> FIM DO CONSUMO <<<<<<<<")
